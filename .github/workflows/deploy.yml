@@ -72,9 +72,9 @@ jobs:
       - name: Redeploy backend on Railway
         run: railway redeploy --service ${{ secrets.RAILWAY_BACKEND_SERVICE_ID }} --yes
         env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
 
       - name: Redeploy frontend on Railway
         run: railway redeploy --service ${{ secrets.RAILWAY_FRONTEND_SERVICE_ID }} --yes
         env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
