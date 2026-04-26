@@ -1,0 +1,80 @@
+# ============================================================================
+# ASE Foundations — Day 9 CI/CD Exercise (SOLUTION)
+# GitHub Actions Workflow: Build, Test, and Deploy to Railway
+# ============================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Job 1: Run Backend Tests ──
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          cd backend
+          python manage.py test
+
+  # ── Job 2: Build and Push Docker Images ──
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test-backend
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push backend image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/taskmanager-backend:latest ./backend
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskmanager-backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/taskmanager-frontend:latest \
+            --build-arg REACT_APP_API_URL=/api ./frontend
+          docker push ${{ secrets.DOCKER_USERNAME }}/taskmanager-frontend:latest
+
+  # ── Job 3: Deploy to Railway ──
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Redeploy backend on Railway
+        run: railway redeploy --service ${{ secrets.RAILWAY_BACKEND_SERVICE_ID }} --yes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Redeploy frontend on Railway
+        run: railway redeploy --service ${{ secrets.RAILWAY_FRONTEND_SERVICE_ID }} --yes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
